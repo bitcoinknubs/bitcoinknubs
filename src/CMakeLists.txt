@@ -406,6 +406,34 @@ if(BUILD_KERNEL_LIB)
   add_subdirectory(kernel)
 endif()
 
+if (BUILD_KERNEL_LIB)
+  if (TARGET bitcoinkernel)
+    # 1) Add the C FFI wrapper implementation (file lives at: src/kernel/bitcoinkernel.cpp)
+    target_sources(bitcoinkernel PRIVATE
+      kernel/bitcoinkernel.cpp
+    )
+
+    # 2) Ensure BITCOINKERNEL_API expands to visibility("default")/dllexport for our btck_* API
+    target_compile_definitions(bitcoinkernel PRIVATE BITCOINKERNEL_BUILD)
+
+    # 3) (Recommended) Hide everything by default, export only API-marked symbols
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang|GNU")
+      target_compile_options(bitcoinkernel PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
+    endif()
+
+    # 4) Publish the public header and install it (file lives at: src/kernel/bitcoinkernel.h)
+    target_include_directories(bitcoinkernel PUBLIC
+      ${CMAKE_CURRENT_SOURCE_DIR}/kernel
+    )
+
+    install(FILES kernel/bitcoinkernel.h
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+            COMPONENT libbitcoinkernel)
+  else()
+    message(FATAL_ERROR "BUILD_KERNEL_LIB=ON but target 'bitcoinkernel' was not found. Make sure add_subdirectory(kernel) defines it.")
+  endif()
+endif()
+
 if(BUILD_UTIL_CHAINSTATE)
   add_executable(bitcoin-chainstate
     bitcoin-chainstate.cpp
