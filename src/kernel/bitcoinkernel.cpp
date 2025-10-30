@@ -2,7 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#ifndef BITCOINKERNEL_BUILD
 #define BITCOINKERNEL_BUILD
+#endif
 
 #include <kernel/bitcoinkernel.h>
 
@@ -1206,6 +1208,108 @@ const btck_TransactionOutput* btck_coin_get_output(const btck_Coin* coin)
 void btck_coin_destroy(btck_Coin* coin)
 {
     delete coin;
+}
+
+bool btck_chainstate_manager_get_coin(
+    const btck_ChainstateManager* chainstate_manager,
+    const uint8_t* txid,
+    uint32_t vout,
+    btck_Coin** coin_out
+) {
+    if (!chainstate_manager || !txid || !coin_out) {
+        return false;
+    }
+
+    try {
+        auto& manager = btck_ChainstateManager::get(chainstate_manager);
+
+        // Create Txid from raw bytes using FromUint256 factory
+        uint256 hash;
+        std::memcpy(hash.begin(), txid, 32);
+        Txid txid_obj = Txid::FromUint256(hash);
+
+        // Create COutPoint with the Txid object
+        COutPoint outpoint(txid_obj, vout);
+
+        // Lock cs_main to safely access the UTXO set
+        LOCK(cs_main);
+
+        // Get the active chainstate's UTXO view
+        CCoinsViewCache& view = manager.m_chainman->ActiveChainstate().CoinsTip();
+
+        // Try to get the coin (returns std::optional<Coin>)
+        std::optional<Coin> coin_opt = view.GetCoin(outpoint);
+        if (!coin_opt.has_value()) {
+            // Coin doesn't exist
+            return false;
+        }
+
+        // Create btck_Coin using Handle::create with the Coin object
+        // The create method will do: make_unique<Coin>(move(*coin_opt))
+        *coin_out = btck_Coin::create(*std::move(coin_opt));
+
+        return true;
+    } catch (const std::exception& e) {
+        LogError("Error in btck_chainstate_manager_get_coin: %s\n", e.what());
+        return false;
+    }
+}
+
+bool btck_chainstate_manager_have_coin(
+    const btck_ChainstateManager* chainstate_manager,
+    const uint8_t* txid,
+    uint32_t vout
+) {
+    if (!chainstate_manager || !txid) {
+        return false;
+    }
+
+    try {
+        auto& manager = btck_ChainstateManager::get(chainstate_manager);
+
+        // Create Txid from raw bytes using FromUint256 factory
+        uint256 hash;
+        std::memcpy(hash.begin(), txid, 32);
+        Txid txid_obj = Txid::FromUint256(hash);
+
+        // Create COutPoint with the Txid object
+        COutPoint outpoint(txid_obj, vout);
+
+        // Lock cs_main to safely access the UTXO set
+        LOCK(cs_main);
+
+        // Get the active chainstate's UTXO view
+        CCoinsViewCache& view = manager.m_chainman->ActiveChainstate().CoinsTip();
+
+        // Check if coin exists
+        return view.HaveCoin(outpoint);
+    } catch (const std::exception& e) {
+        LogError("Error in btck_chainstate_manager_have_coin: %s\n", e.what());
+        return false;
+    }
+}
+
+uint64_t btck_transaction_output_get_value(
+    const btck_TransactionOutput* transaction_output
+) {
+    if (!transaction_output) {
+        return 0;
+    }
+
+    return btck_TransactionOutput::get(transaction_output).nValue;
+}
+
+const uint8_t* btck_transaction_output_get_script_pubkey_bytes(
+    const btck_TransactionOutput* transaction_output,
+    size_t* script_len
+) {
+    if (!transaction_output || !script_len) {
+        return nullptr;
+    }
+
+    const auto& script = btck_TransactionOutput::get(transaction_output).scriptPubKey;
+    *script_len = script.size();
+    return reinterpret_cast<const uint8_t*>(script.data());
 }
 
 int btck_chainstate_manager_process_block(

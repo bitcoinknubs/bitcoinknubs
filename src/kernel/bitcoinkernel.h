@@ -1505,6 +1505,67 @@ BITCOINKERNEL_API void btck_coin_destroy(btck_Coin* coin);
 
 ///@}
 
+/**
+ * Get a coin from the UTXO set by transaction ID and output index.
+ *
+ * @param[in] chainstate_manager  The chainstate manager.
+ * @param[in] txid                Transaction ID (32 bytes).
+ * @param[in] vout                Output index.
+ * @param[out] coin_out           Pointer to receive the coin object.
+ * @return true if the coin exists and was retrieved, false otherwise.
+ *
+ * The returned coin must be freed with btck_coin_destroy().
+ */
+BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT
+btck_chainstate_manager_get_coin(
+    const btck_ChainstateManager* chainstate_manager,
+    const uint8_t* txid,
+    uint32_t vout,
+    btck_Coin** coin_out
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2) BITCOINKERNEL_ARG_NONNULL(4);
+
+/**
+ * Check if a coin exists in the UTXO set.
+ *
+ * @param[in] chainstate_manager  The chainstate manager.
+ * @param[in] txid                Transaction ID (32 bytes).
+ * @param[in] vout                Output index.
+ * @return true if the coin exists, false otherwise.
+ */
+BITCOINKERNEL_API bool BITCOINKERNEL_WARN_UNUSED_RESULT
+btck_chainstate_manager_have_coin(
+    const btck_ChainstateManager* chainstate_manager,
+    const uint8_t* txid,
+    uint32_t vout
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
+
+/**
+ * Get the value (in satoshis) of a transaction output.
+ *
+ * @param[in] transaction_output  The transaction output.
+ * @return The value in satoshis.
+ */
+BITCOINKERNEL_API uint64_t BITCOINKERNEL_WARN_UNUSED_RESULT
+btck_transaction_output_get_value(
+    const btck_TransactionOutput* transaction_output
+) BITCOINKERNEL_ARG_NONNULL(1);
+
+/**
+ * Get the scriptPubKey of a transaction output as raw bytes.
+ *
+ * NOTE: This is different from btck_transaction_output_get_script_pubkey()
+ * which returns a btck_ScriptPubkey* object. This function returns raw bytes.
+ *
+ * @param[in] transaction_output  The transaction output.
+ * @param[out] script_len         Pointer to receive the script length.
+ * @return Pointer to the script bytes (valid while the output is alive).
+ */
+BITCOINKERNEL_API const uint8_t* BITCOINKERNEL_WARN_UNUSED_RESULT
+btck_transaction_output_get_script_pubkey_bytes(
+    const btck_TransactionOutput* transaction_output,
+    size_t* script_len
+) BITCOINKERNEL_ARG_NONNULL(1) BITCOINKERNEL_ARG_NONNULL(2);
+
 /** @name BlockHash
  * Functions for working with block hashes.
  */
